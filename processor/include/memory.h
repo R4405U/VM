@@ -21,7 +21,7 @@ void   mem_write8(mem_bus* bus, addr_t addr, byte_t val);
 
 
 word_t mem_read32(mem_bus* bus, addr_t addr);
-void  mem_write32(mem_bus* bus, addr_t addr, byte_t val);
+void  mem_write32(mem_bus* bus, addr_t addr, word_t val);
 
 
 

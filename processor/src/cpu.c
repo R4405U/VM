@@ -69,8 +69,13 @@ void cpu_step(cpu_state* cpu, mem_bus* bus){
 
         case OP_SUB:
             cpu->regs[rd] = cpu->regs[rs1] - cpu->regs[rs2];
-            break;
 
+            if (cpu->regs[rd] == 0) cpu->regs[FG_REG] |= FLAG_ZERO;
+            else                    cpu->regs[FG_REG] &= ~FLAG_ZERO;
+
+            if (cpu->regs[rd] & 0x80000000) cpu->regs[FG_REG] |= FLAG_NEGATIVE;
+            else                            cpu->regs[FG_REG] &= ~FLAG_NEGATIVE;
+            break;
 
         case OP_MUL: {
 
@@ -79,7 +84,7 @@ void cpu_step(cpu_state* cpu, mem_bus* bus){
 
             uint64_t result = val1 * val2;
 
-            cpu->regs[rd] = (word_t)(result && 0xFFFFFFFF);
+            cpu->regs[rd] = (word_t)(result & 0xFFFFFFFF);
             cpu->regs[T1_REG] = (word_t)(result >> 32);
 
             if(cpu->regs[rd] == 0)  cpu->regs[FG_REG] |= FLAG_ZERO;
@@ -181,10 +186,41 @@ void cpu_step(cpu_state* cpu, mem_bus* bus){
             break;
 
 
-
         case OP_HALT:
             cpu->regs[FG_REG] |= FLAG_HALT;
             break;
+
+        case OP_CALL: {
+
+            word_t target_addr = (word_t)GET_JUMP26(instr);
+
+            cpu->regs[SP_REG] -= 4;
+
+            mem_write32(bus, cpu->regs[SP_REG], cpu->regs[PC_REG]);
+
+            if(cpu->regs[FG_REG] & FLAG_HALT){
+                fprintf(stderr, "[CPU TRAP] Stack Overflow or Bus Error at CALL\n");
+                break;
+            }
+
+            cpu->regs[PC_REG] = target_addr;
+            break;
+        }
+
+        case OP_RET: {
+            word_t return_addr = mem_read32(bus, cpu->regs[SP_REG]);
+
+            if (cpu->regs[FG_REG] & FLAG_HALT) {
+                fprintf(stderr, "[CPU TRAP] Stack Underflow or Bus Error at RET\n");
+                break;
+            }
+
+            cpu->regs[SP_REG] += 4;
+
+            cpu->regs[PC_REG] = return_addr;
+            break;
+        }
+
 
         default:
             fprintf(stderr, "[CPU EXCEPTION] Illegal Opcode 0x%02X at PC 0x%08X\n",
@@ -204,7 +240,7 @@ void cpu_run(cpu_state* cpu, mem_bus* bus){
     }
 }
 
-void cpu_dump_registers(const cpu_state *cpu) {
+void cpu_dump_regs(const cpu_state *cpu) {
     printf("=== CPU REGISTERS DUMP ===\n");
     for (int i = REG_R0; i <= REG_R12; i++) {
         printf("R%-2d: 0x%08X  ", i, cpu->regs[i]);

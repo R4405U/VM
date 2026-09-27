@@ -73,7 +73,7 @@ word_t mem_read32(mem_bus* bus, addr_t addr){
     ((word_t)bus->ram[addr + 3] <<  0);
 
 }
-void   mem_write32(mem_bus* bus, addr_t addr, byte_t val){
+void   mem_write32(mem_bus* bus, addr_t addr, word_t val){
     if (addr + 3 >= TOTAL_MEMORY || addr % 4 != 0) {
         bus->bus_err = true;
         return;
